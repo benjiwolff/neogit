@@ -1,0 +1,5 @@
+These patches have not made it upstream yet (or never will):
+* cterm colors https://github.com/NeogitOrg/neogit/pull/1711
+* multi-commit diffs https://github.com/NeogitOrg/neogit/pull/1784
+* fast staging https://github.com/NeogitOrg/neogit/pull/1856
+* fast commits https://github.com/NeogitOrg/neogit/pull/1857
