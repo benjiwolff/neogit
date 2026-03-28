@@ -248,18 +248,13 @@ function Repo:git_path(...)
   return Path:new(self.git_dir):joinpath(...)
 end
 
----@param name string
-function Repo:task_with_log(name, state, filter)
-  local start = vim.uv.now()
-  self.lib[name](state, filter)
-  logger.debug(("[REPO]: Refreshed %s in %d ms"):format(name, vim.uv.now() - start))
-end
-
 function Repo:tasks(filter, state)
   local tasks = {}
   for name, fn in pairs(self.lib) do
     table.insert(tasks, function()
-      self:task_with_log(name, state, filter)
+      local start = vim.uv.now()
+      fn(state, filter)
+      logger.debug(("[REPO]: Refreshed %s in %d ms"):format(name, vim.uv.now() - start))
     end)
   end
 
@@ -296,15 +291,6 @@ end
 
 function Repo:set_state(id)
   self.state = self:current_state(id)
-end
-
-local function count_entries(table)
-  local count = 0
-  for _, _ in pairs(table) do
-    count = count + 1
-  end
-
-  return count
 end
 
 function Repo:refresh(opts)
@@ -351,13 +337,7 @@ function Repo:refresh(opts)
     self:run_callbacks(start)
   end)
 
-  local state = self:current_state(start)
-  if opts.partial and count_entries(opts.partial) == 1 and opts.partial.update_diffs then
-    self:task_with_log("update_status", state, filter)
-    on_complete()
-  else
-    a.util.run_all(self:tasks(filter, state), on_complete)
-  end
+  a.util.run_all(self:tasks(filter, self:current_state(start)), on_complete)
 end
 
 Repo.dispatch_refresh = a.void(function(self, opts)
