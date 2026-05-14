@@ -136,12 +136,24 @@ function M.branch_create(name, target)
   return true, nil
 end
 
----Submit the entire stack containing the current branch (creates/updates PRs
----for every non-trunk branch in the chain).
+---Submit the current branch and every ancestor (downstack) — i.e. its
+---dependencies — but leave branches built on top alone.
 ---@return boolean ok
 ---@return string? err
-function M.stack_submit()
-  local res = run { "stack", "submit", "--fill" }
+function M.downstack_submit()
+  local res = run { "downstack", "submit", "--fill" }
+  if res.code ~= 0 then
+    return false, vim.trim(res.stderr ~= "" and res.stderr or res.stdout)
+  end
+  return true, nil
+end
+
+---Rebase the current branch onto its tracked parent (no-op if already in
+---sync, or if the branch isn't tracked by git-spice).
+---@return boolean ok
+---@return string? err
+function M.branch_restack()
+  local res = run { "branch", "restack" }
   if res.code ~= 0 then
     return false, vim.trim(res.stderr ~= "" and res.stderr or res.stdout)
   end

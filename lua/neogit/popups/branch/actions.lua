@@ -30,6 +30,18 @@ local function checkout_branch(target, args)
   event.send("BranchCheckout", { branch_name = target })
   notification.info("Checked out branch " .. target)
 
+  if git.spice.enabled() and not git.spice.is_trunk(target) then
+    local ok, err = git.spice.branch_restack()
+    if ok then
+      notification.info("Restacked " .. target, { dismiss = true })
+    elseif err and err ~= "" then
+      -- Restack failures are noisy but non-fatal — typically just "branch is
+      -- not tracked by git-spice". Surface them so the user can see what
+      -- happened, but don't bail out of the checkout flow.
+      git.spice.notify_failure("branch restack", err)
+    end
+  end
+
   if config.values.fetch_after_checkout then
     a.void(function()
       local pushRemote = git.branch.pushRemote_ref(target)

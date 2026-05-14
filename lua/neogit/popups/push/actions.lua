@@ -30,19 +30,19 @@ end
 
 ---@param branch string
 local function push_via_spice(branch)
-  local name = "stack containing " .. branch
+  local name = "downstack of " .. branch
   logger.debug("Submitting " .. name .. " via git-spice")
   notification.info("Submitting " .. name .. " via git-spice")
 
-  local ok, err = git.spice.stack_submit()
+  local ok, err = git.spice.downstack_submit()
   if ok then
     a.util.scheduler()
     logger.debug("Submitted " .. name)
     notification.info("Submitted " .. name, { dismiss = true })
     event.send("PushComplete")
   else
-    logger.debug("git-spice stack submit failed for " .. name)
-    git.spice.notify_failure("stack submit", err)
+    logger.debug("git-spice downstack submit failed for " .. name)
+    git.spice.notify_failure("downstack submit", err)
   end
 end
 
