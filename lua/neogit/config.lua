@@ -349,6 +349,10 @@ end
 ---@field commit? string
 ---@field tree? string
 
+---@class NeogitGitSpiceConfig
+---@field enabled? boolean Route branch creation through `gs branch create` and push through `gs stack submit`
+---@field executable? string Path to the git-spice binary (defaults to "git-spice")
+
 ---@class NeogitConfig Neogit configuration settings
 ---@field filewatcher? NeogitFilewatcherConfig Values for filewatcher
 ---@field graph_style? NeogitGraphStyle Style for graph
@@ -394,6 +398,7 @@ end
 ---@field popup? NeogitConfigPopup Set the default way of opening popups
 ---@field signs? NeogitConfigSigns Signs used for toggled regions
 ---@field integrations? { diffview: boolean, codediff: boolean, telescope: boolean, fzf_lua: boolean, mini_pick: boolean, snacks: boolean } Which integrations to enable
+---@field git_spice? NeogitGitSpiceConfig git-spice (`gs`) integration for stacked PR workflows
 ---@field diff_viewer? "diffview"|"codediff"|nil Which diff viewer to use (nil = auto-detect)
 ---@field sections? NeogitConfigSections
 ---@field ignored_settings? string[] Settings to never persist, format: "Filetype--cli-value", i.e. "NeogitCommitPopup--author"
@@ -558,6 +563,10 @@ function M.get_default_values()
       fzf_lua = nil,
       mini_pick = nil,
       snacks = nil,
+    },
+    git_spice = {
+      enabled = false,
+      executable = "git-spice",
     },
     diff_viewer = nil,
     sections = {
@@ -909,6 +918,14 @@ function M.validate_config()
         )
       end
     end
+  end
+
+  local function validate_git_spice()
+    if not validate_type(config.git_spice, "git_spice", "table") then
+      return
+    end
+    validate_type(config.git_spice.enabled, "git_spice.enabled", "boolean")
+    validate_type(config.git_spice.executable, "git_spice.executable", "string")
   end
 
   local function validate_sections()
@@ -1316,6 +1333,7 @@ function M.validate_config()
 
     validate_integrations()
     validate_diff_viewer()
+    validate_git_spice()
     validate_sections()
     validate_ignored_settings()
     validate_mappings()
