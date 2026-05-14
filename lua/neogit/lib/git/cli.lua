@@ -1,7 +1,7 @@
 local git = require("neogit.lib.git")
 local process = require("neogit.process")
 local util = require("neogit.lib.util")
-local Path = require("plenary.path")
+local Path = require("neogit.lib.path")
 local runner = require("neogit.runner")
 
 ---Get the configured git executable path
@@ -340,7 +340,7 @@ end
 ---@field symbolic self
 ---@field symbolic_full_name self
 ---@field show_superproject_working_tree self
----@field abbrev_ref fun(ref: string): self
+---@field abbrev_ref self
 
 ---@class GitCommandCherryPick: GitCommandBuilder
 ---@field no_commit self
@@ -512,6 +512,7 @@ local configurations = {
       global = "--global",
       list = "--list",
       _get = "--get",
+      _get_all = "--get-all",
       _add = "--add",
       _unset = "--unset",
       null = "--null",
@@ -530,6 +531,11 @@ local configurations = {
       get = function(tbl)
         return function(path)
           return tbl._get.args(path)
+        end
+      end,
+      get_all = function(tbl)
+        return function(path)
+          return tbl._get_all.args(path)
         end
       end,
     },
@@ -994,10 +1000,9 @@ local configurations = {
       symbolic = "--symbolic",
       symbolic_full_name = "--symbolic-full-name",
       show_superproject_working_tree = "--show-superproject-working-tree",
-    },
-    options = {
       abbrev_ref = "--abbrev-ref",
     },
+    options = {},
   },
 
   ["cherry-pick"] = config {

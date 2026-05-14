@@ -4,7 +4,7 @@ local ui = require("neogit.buffers.status.ui")
 local popups = require("neogit.popups")
 local git = require("neogit.lib.git")
 local Watcher = require("neogit.watcher")
-local a = require("plenary.async")
+local a = require("neogit.lib.async")
 local logger = require("neogit.logger") -- TODO: Add logging
 local event = require("neogit.lib.event")
 
@@ -59,7 +59,7 @@ end
 ---@param abs_path string
 ---@return boolean
 function M:has_submodule(abs_path)
-  local dir = require("plenary.path"):new(abs_path)
+  local dir = require("neogit.lib.path"):new(abs_path)
   if not dir:exists() or not dir:is_dir() then
     return false
   end
@@ -152,7 +152,7 @@ function M:open(kind)
     name = "NeogitStatus",
     filetype = "NeogitStatus",
     cwd = self.cwd,
-    context_highlight = not config.values.disable_context_highlighting,
+    context_highlight = not config.values.disable_context_highlighting and config.values.log_pager == nil,
     kind = kind or config.values.kind or "tab",
     disable_line_numbers = config.values.disable_line_numbers,
     disable_relative_line_numbers = config.values.disable_relative_line_numbers,
@@ -169,6 +169,7 @@ function M:open(kind)
     mappings = {
       v = {
         [mappings["Discard"]]                   = self:_action("v_discard"),
+        [mappings["Reverse"]]                   = self:_action("v_reverse"),
         [mappings["Stage"]]                     = self:_action("v_stage"),
         [mappings["Unstage"]]                   = self:_action("v_unstage"),
         [mappings["Untrack"]]                   = self:_action("v_untrack"),
@@ -215,6 +216,7 @@ function M:open(kind)
         [mappings["ShowRefs"]]                  = self:_action("n_show_refs"),
         [mappings["YankSelected"]]              = self:_action("n_yank_selected"),
         [mappings["Discard"]]                   = self:_action("n_discard"),
+        [mappings["Reverse"]]                   = self:_action("n_reverse"),
         [mappings["GoToNextHunkHeader"]]        = self:_action("n_go_to_next_hunk_header"),
         [mappings["GoToPreviousHunkHeader"]]    = self:_action("n_go_to_previous_hunk_header"),
         [mappings["InitRepo"]]                  = self:_action("n_init_repo"),
@@ -276,6 +278,7 @@ function M:open(kind)
       -- in order to show the user the correct state.
       ["NeogitReset"] = self:deferred_refresh("reset"),
       ["NeogitBranchReset"] = self:deferred_refresh("reset_branch"),
+      ["NeogitEditorClosed"] = self:deferred_refresh("editor_closed"),
     },
     autocmds = {
       ["FocusGained"] = self:deferred_refresh("focused", 10),
@@ -298,7 +301,7 @@ function M:close()
 end
 
 function M:chdir(dir)
-  local Path = require("plenary.path")
+  local Path = require("neogit.lib.path")
 
   local destination = Path:new(dir)
   vim.wait(5000, function()

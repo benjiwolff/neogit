@@ -3,9 +3,10 @@ local ui = require("neogit.buffers.log_view.ui")
 local config = require("neogit.config")
 local popups = require("neogit.popups")
 local status_maps = require("neogit.config").get_reversed_status_maps()
+local commit_view_maps = require("neogit.config").get_reversed_commit_view_maps()
 local CommitViewBuffer = require("neogit.buffers.commit_view")
 local util = require("neogit.lib.util")
-local a = require("plenary.async")
+local a = require("neogit.lib.async")
 local notification = require("neogit.lib.notification")
 local git = require("neogit.lib.git")
 
@@ -130,7 +131,7 @@ function M:open()
         end),
       },
       n = {
-        ["o"] = function()
+        [commit_view_maps["OpenCommitLinkInBrowser"]] = function()
           if not vim.ui.open then
             notification.warn("Requires Neovim >= 0.10")
             return
