@@ -148,16 +148,32 @@ function M.downstack_submit()
   return true, nil
 end
 
----Rebase the current branch onto its tracked parent (no-op if already in
----sync, or if the branch isn't tracked by git-spice).
+---Read the current HEAD commit SHA (or nil if detached/empty/error).
+---@return string|nil
+local function head_sha()
+  local res = vim.system({ "git", "rev-parse", "HEAD" }, { text = true }):wait()
+  if res.code ~= 0 then
+    return nil
+  end
+  local sha = vim.trim(res.stdout or "")
+  return sha ~= "" and sha or nil
+end
+
+---Rebase the current branch onto its tracked parent. Returns a third value
+---`changed` indicating whether HEAD actually moved, so callers can suppress
+---"restacked" messages when nothing happened.
 ---@return boolean ok
 ---@return string? err
+---@return boolean changed
 function M.branch_restack()
+  local before = head_sha()
   local res = run { "branch", "restack" }
   if res.code ~= 0 then
-    return false, vim.trim(res.stderr ~= "" and res.stderr or res.stdout)
+    return false, vim.trim(res.stderr ~= "" and res.stderr or res.stdout), false
   end
-  return true, nil
+  local after = head_sha()
+  local changed = before ~= nil and after ~= nil and before ~= after
+  return true, nil, changed
 end
 
 ---Notify the user that git-spice is unavailable and they may need to run
