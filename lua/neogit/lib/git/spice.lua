@@ -5,19 +5,6 @@ local logger = require("neogit.logger")
 ---@class NeogitGitSpice
 local M = {}
 
----True when the user opted into the integration AND git-spice can actually
----operate on the current repo (binary present and `gs repo init` has been
----run). Re-probes on every call so switching repos always reflects the
----current working directory.
----@return boolean
-function M.enabled()
-  local cfg = config.values.git_spice
-  if not (cfg and cfg.enabled) then
-    return false
-  end
-  return run({ "ls" }):success()
-end
-
 ---@return string
 local function executable()
   return (config.values.git_spice and config.values.git_spice.executable) or "git-spice"
@@ -76,6 +63,34 @@ local function run(argv)
     stderr = split_lines(res.stderr),
     cmd = table.concat(cmd, " "),
   }, Result)
+end
+
+---True when the user opted into the integration AND git-spice can actually
+---operate on the current repo (binary present and `gs repo init` has been
+---run). Re-probes on every call so switching repos always reflects the
+---current working directory.
+---@return boolean
+function M.enabled()
+  local cfg = config.values.git_spice
+  if not (cfg and cfg.enabled) then
+    logger.debug("[git-spice] enabled() = false: git_spice.enabled is not true in neogit config")
+    return false
+  end
+
+  local result = run { "ls" }
+  if result:success() then
+    logger.debug("[git-spice] enabled() = true")
+    return true
+  end
+
+  logger.debug(
+    ("[git-spice] enabled() = false: `%s ls` exited %d (%s)"):format(
+      executable(),
+      result.code,
+      result:error_message()
+    )
+  )
+  return false
 end
 
 ---Try locally-known remote HEAD via `git symbolic-ref`. Returns nil when the
