@@ -164,6 +164,19 @@ end
 ---@param base_branch? string
 ---@return boolean
 function M.create(name, base_branch)
+  if git.spice.enabled() then
+    local target
+    if base_branch and base_branch ~= "" and base_branch ~= M.current() then
+      target = base_branch
+    end
+
+    local ok, err = git.spice.branch_create(name, target)
+    if not ok then
+      git.spice.notify_failure("branch create", err)
+    end
+    return ok
+  end
+
   return git.cli.branch.args(name, base_branch).call({ await = true }):success()
 end
 

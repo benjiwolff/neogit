@@ -11,12 +11,52 @@ local FuzzyFinderBuffer = require("neogit.buffers.fuzzy_finder")
 
 local M = {}
 
+---@param branch string|nil
+---@return boolean
+local function spice_should_handle(branch)
+  if not git.spice.enabled() then
+    return false
+  end
+  -- A nil branch means the user is pushing HEAD; fall through and let git
+  -- handle whatever ambiguous case that is.
+  if not branch or branch == "" then
+    return false
+  end
+  if git.spice.is_trunk(branch) then
+    return false
+  end
+  return true
+end
+
+---@param branch string
+local function push_via_spice(branch)
+  local name = "stack containing " .. branch
+  logger.debug("Submitting " .. name .. " via git-spice")
+  notification.info("Submitting " .. name .. " via git-spice")
+
+  local ok, err = git.spice.stack_submit()
+  if ok then
+    a.util.scheduler()
+    logger.debug("Submitted " .. name)
+    notification.info("Submitted " .. name, { dismiss = true })
+    event.send("PushComplete")
+  else
+    logger.debug("git-spice stack submit failed for " .. name)
+    git.spice.notify_failure("stack submit", err)
+  end
+end
+
 ---@param args string[]
 ---@param remote string
 ---@param branch string|nil
 ---@param opts table|nil
 local function push_to(args, remote, branch, opts)
   opts = opts or {}
+
+  if spice_should_handle(branch) then
+    push_via_spice(branch)
+    return
+  end
 
   if opts.set_upstream or git.push.auto_setup_remote(branch) then
     table.insert(args, "--set-upstream")
