@@ -6,21 +6,16 @@ local logger = require("neogit.logger")
 local M = {}
 
 ---True when the user opted into the integration AND git-spice can actually
----operate on this repo (binary present and `gs repo init` has been run).
----Probes once per session via a read-only spice command; call `invalidate()`
----to re-check after running `gs repo init` interactively.
+---operate on the current repo (binary present and `gs repo init` has been
+---run). Re-probes on every call so switching repos always reflects the
+---current working directory.
 ---@return boolean
 function M.enabled()
-  if M._enabled_cache ~= nil then
-    return M._enabled_cache
-  end
   local cfg = config.values.git_spice
   if not (cfg and cfg.enabled) then
-    M._enabled_cache = false
     return false
   end
-  M._enabled_cache = run({ "ls" }):success()
-  return M._enabled_cache
+  return run({ "ls" }):success()
 end
 
 ---@return string
@@ -118,23 +113,18 @@ local function ls_remote_head(remote)
   return nil
 end
 
----Trunk branch for this repo. We deliberately do **not** call `gs trunk`,
----which is a checkout command (it switches HEAD), not a query. Instead we
----iterate every configured remote, prefer the cheap local lookup, and only
----fall back to a network ls-remote when nothing local resolves.
+---Trunk branch for the current repo. We deliberately do **not** call
+---`gs trunk`, which is a checkout command (it switches HEAD), not a query.
+---Instead we iterate every configured remote, prefer the cheap local lookup,
+---and only fall back to a network ls-remote when nothing local resolves.
 ---@return string|nil
 function M.trunk()
-  if M._trunk_cache ~= nil then
-    return M._trunk_cache or nil
-  end
-
   local git = require("neogit.lib.git")
   local remotes = git.remote.list()
 
   for _, remote in ipairs(remotes) do
     local name = local_remote_head(remote)
     if name then
-      M._trunk_cache = name
       return name
     end
   end
@@ -142,20 +132,11 @@ function M.trunk()
   for _, remote in ipairs(remotes) do
     local name = ls_remote_head(remote)
     if name then
-      M._trunk_cache = name
       return name
     end
   end
 
-  M._trunk_cache = false
   return nil
-end
-
----Invalidate cached repo-scoped state. Call after `gs repo init` or branch ops
----that might rename the trunk.
-function M.invalidate()
-  M._trunk_cache = nil
-  M._enabled_cache = nil
 end
 
 ---@param branch string
