@@ -34,22 +34,76 @@ local function run(argv)
   }
 end
 
----Trunk branch tracked by git-spice for this repo, or nil if not initialized.
+---Try locally-known remote HEAD via `git symbolic-ref`. Returns nil when the
+---ref isn't set (i.e. `git remote set-head` was never run for this remote).
+---@param remote string
+---@return string|nil
+local function local_remote_head(remote)
+  local res = vim.system(
+    { "git", "symbolic-ref", "--short", "refs/remotes/" .. remote .. "/HEAD" },
+    { text = true }
+  ):wait()
+  if res.code ~= 0 then
+    return nil
+  end
+  local ref = vim.trim(res.stdout or "")
+  if ref == "" then
+    return nil
+  end
+  return ref:match("^[^/]+/(.+)$") or ref
+end
+
+---Ask the remote directly which branch HEAD points to. Reliable but does
+---network IO, so we only use it as a fallback when the local ref isn't set.
+---@param remote string
+---@return string|nil
+local function ls_remote_head(remote)
+  local res = vim.system(
+    { "git", "ls-remote", "--symref", remote, "HEAD" },
+    { text = true }
+  ):wait()
+  if res.code ~= 0 then
+    return nil
+  end
+  -- Output starts with:  "ref: refs/heads/<name>\tHEAD"
+  local name = (res.stdout or ""):match("ref:%s+refs/heads/(%S+)%s+HEAD")
+  if name and name ~= "" then
+    return name
+  end
+  return nil
+end
+
+---Trunk branch for this repo. We deliberately do **not** call `gs trunk`,
+---which is a checkout command (it switches HEAD), not a query. Instead we
+---iterate every configured remote, prefer the cheap local lookup, and only
+---fall back to a network ls-remote when nothing local resolves.
 ---@return string|nil
 function M.trunk()
   if M._trunk_cache ~= nil then
     return M._trunk_cache or nil
   end
 
-  local res = run({ "trunk" })
-  if res.code ~= 0 then
-    M._trunk_cache = false
-    return nil
+  local git = require("neogit.lib.git")
+  local remotes = git.remote.list()
+
+  for _, remote in ipairs(remotes) do
+    local name = local_remote_head(remote)
+    if name then
+      M._trunk_cache = name
+      return name
+    end
   end
 
-  local name = vim.trim(res.stdout)
-  M._trunk_cache = (name ~= "" and name) or false
-  return M._trunk_cache or nil
+  for _, remote in ipairs(remotes) do
+    local name = ls_remote_head(remote)
+    if name then
+      M._trunk_cache = name
+      return name
+    end
+  end
+
+  M._trunk_cache = false
+  return nil
 end
 
 ---Invalidate cached repo-scoped state. Call after `gs repo init` or branch ops
@@ -73,7 +127,7 @@ end
 ---@return boolean ok
 ---@return string? err
 function M.branch_create(name, target)
-  local argv = { "branch", "create", name }
+  local argv = { "branch", "create", "--no-commit", name }
   if target and target ~= "" then
     argv[#argv + 1] = "--target"
     argv[#argv + 1] = target
