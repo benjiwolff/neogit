@@ -31,6 +31,13 @@ local function checkout_branch(target, args)
   notification.info("Checked out branch " .. target)
 
   if git.spice.enabled() and not git.spice.is_trunk(target) then
+    -- Sync first so any PRs that merged since the last sync get cleaned up
+    -- and descendants get re-parented before we try to restack.
+    local sync_ok, sync_err = git.spice.repo_sync()
+    if not sync_ok and sync_err and sync_err ~= "" then
+      git.spice.notify_failure("repo sync", sync_err)
+    end
+
     local ok, err, changed = git.spice.branch_restack()
     if ok then
       if changed then

@@ -159,6 +159,18 @@ local function head_sha()
   return sha ~= "" and sha or nil
 end
 
+---Fetch trunk, prune branches whose PRs have been merged, and re-parent any
+---descendants onto trunk. Does network IO.
+---@return boolean ok
+---@return string? err
+function M.repo_sync()
+  local res = run { "repo", "sync" }
+  if res.code ~= 0 then
+    return false, vim.trim(res.stderr ~= "" and res.stderr or res.stdout)
+  end
+  return true, nil
+end
+
 ---Rebase the current branch onto its tracked parent. Returns a third value
 ---`changed` indicating whether HEAD actually moved, so callers can suppress
 ---"restacked" messages when nothing happened.
