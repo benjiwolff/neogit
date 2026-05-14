@@ -145,7 +145,7 @@ end
 ---@return boolean ok
 ---@return string? err
 function M.stack_submit()
-  local res = run({ "stack", "submit" })
+  local res = run { "stack", "submit", "--fill" }
   if res.code ~= 0 then
     return false, vim.trim(res.stderr ~= "" and res.stderr or res.stdout)
   end
