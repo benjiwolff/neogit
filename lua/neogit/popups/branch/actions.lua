@@ -267,8 +267,19 @@ function M.rename_branch()
     return
   end
 
-  local result = git.cli.branch.move.args(selected_branch, new_name).call { await = true }
-  if result:success() then
+  local success
+  if git.spice.enabled() then
+    local ok, err = git.spice.branch_rename(selected_branch, new_name)
+    success = ok
+    if not ok then
+      git.spice.notify_failure("branch rename", err)
+    end
+  else
+    local result = git.cli.branch.move.args(selected_branch, new_name).call { await = true }
+    success = result:success()
+  end
+
+  if success then
     notification.info(string.format("Renamed '%s' to '%s'", selected_branch, new_name))
     event.send("BranchRename", { branch_name = selected_branch, new_name = new_name })
   else

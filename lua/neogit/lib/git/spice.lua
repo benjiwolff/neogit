@@ -159,6 +159,42 @@ local function head_sha()
   return sha ~= "" and sha or nil
 end
 
+---Rename a tracked branch. git-spice updates the local branch, its data
+---store entry, every child's parent pointer, and the open PR (if any) on the
+---forge so reviewers see the new branch name.
+---@param old string
+---@param new string
+---@return boolean ok
+---@return string? err
+function M.branch_rename(old, new)
+  local res = run { "branch", "rename", old, new }
+  if res.code ~= 0 then
+    return false, vim.trim(res.stderr ~= "" and res.stderr or res.stdout)
+  end
+  return true, nil
+end
+
+---Delete a tracked branch. git-spice removes the local branch, the data
+---store entry, and re-parents any children onto the deleted branch's parent.
+---@param name string
+---@param opts? { force?: boolean }
+---@return boolean ok
+---@return string? err
+function M.branch_delete(name, opts)
+  opts = opts or {}
+  local argv = { "branch", "delete" }
+  if opts.force then
+    argv[#argv + 1] = "--force"
+  end
+  argv[#argv + 1] = name
+
+  local res = run(argv)
+  if res.code ~= 0 then
+    return false, vim.trim(res.stderr ~= "" and res.stderr or res.stdout)
+  end
+  return true, nil
+end
+
 ---Fetch trunk, prune branches whose PRs have been merged, and re-parent any
 ---descendants onto trunk. Does network IO.
 ---@return boolean ok

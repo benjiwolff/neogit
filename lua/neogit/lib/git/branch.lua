@@ -189,12 +189,23 @@ function M.delete(name)
   if M.is_unmerged(name) then
     local message = ("'%s' contains unmerged commits! Are you sure you want to delete it?"):format(name)
     if input.get_permission(message) then
-      result = git.cli.branch.delete.force.name(name).call { await = true }
+      if git.spice.enabled() then
+        result = git.spice.branch_delete(name, { force = true })
+      else
+        result = git.cli.branch.delete.force.name(name).call { await = true }
+      end
     end
   else
-    result = git.cli.branch.delete.name(name).call { await = true }
+    if git.spice.enabled() then
+      result = git.spice.branch_delete(name)
+    else
+      result = git.cli.branch.delete.name(name).call { await = true }
+    end
   end
 
+  if type(result) == "boolean" then
+    return result
+  end
   return result and result:success() or false
 end
 
