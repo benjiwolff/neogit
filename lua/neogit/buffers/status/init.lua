@@ -323,6 +323,22 @@ function M:focus()
   end
 end
 
+local reasons_for_status_update_only = {
+  "n_discard",
+  "v_discard",
+  "n_stage",
+  "v_stage",
+  "n_untrack",
+  "n_stage_all",
+  "n_unstage_all",
+  "n_stage_unstaged",
+  "n_unstage_staged",
+  "n_unstage",
+  "v_unstage",
+  "n_reverse",
+  "v_reverse",
+}
+
 function M:refresh(partial, reason)
   logger.debug("[STATUS] Beginning refresh from " .. (reason or "UNKNOWN"))
 
@@ -333,15 +349,28 @@ function M:refresh(partial, reason)
     view = self.buffer:save_view()
   end
 
-  git.repo:dispatch_refresh {
-    source = "status",
-    partial = partial,
-    callback = function()
-      self:redraw(cursor, view)
-      event.send("StatusRefreshed")
-      logger.info("[STATUS] Refresh complete")
-    end,
-  }
+  local function callback()
+    self:redraw(cursor, view)
+    event.send("StatusRefreshed")
+    logger.info("[STATUS] Refresh complete")
+  end
+
+  if vim.tbl_contains(reasons_for_status_update_only, reason) then
+    vim.uv.update_time()
+    local start = vim.uv.now()
+    git.repo.lib.update_status(
+      git.repo:current_state(start),
+      require("neogit.lib.item_filter").create(partial.update_diffs or {})
+    )
+    git.repo:set_state(start)
+    callback()
+  else
+    git.repo:dispatch_refresh {
+      source = "status",
+      partial = partial,
+      callback = callback,
+    }
+  end
 end
 
 ---@param cursor CursorLocation?
