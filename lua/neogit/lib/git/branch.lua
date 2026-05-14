@@ -170,11 +170,11 @@ function M.create(name, base_branch)
       target = base_branch
     end
 
-    local ok, err = git.spice.branch_create(name, target)
-    if not ok then
-      git.spice.notify_failure("branch create", err)
+    local result = git.spice.branch_create(name, target)
+    if result:failure() then
+      git.spice.notify_failure("branch create", result)
     end
-    return ok
+    return result:success()
   end
 
   return git.cli.branch.args(name, base_branch).call({ await = true }):success()
@@ -203,9 +203,6 @@ function M.delete(name)
     end
   end
 
-  if type(result) == "boolean" then
-    return result
-  end
   return result and result:success() or false
 end
 

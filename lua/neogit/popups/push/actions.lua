@@ -34,15 +34,15 @@ local function push_via_spice(branch)
   logger.debug("Submitting " .. name .. " via git-spice")
   notification.info("Submitting " .. name .. " via git-spice")
 
-  local ok, err = git.spice.downstack_submit()
-  if ok then
+  local result = git.spice.downstack_submit()
+  if result:success() then
     a.util.scheduler()
     logger.debug("Submitted " .. name)
     notification.info("Submitted " .. name, { dismiss = true })
     event.send("PushComplete")
   else
     logger.debug("git-spice downstack submit failed for " .. name)
-    git.spice.notify_failure("downstack submit", err)
+    git.spice.notify_failure("downstack submit", result)
   end
 end
 

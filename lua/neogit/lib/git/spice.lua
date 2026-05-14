@@ -16,9 +16,45 @@ local function executable()
   return (config.values.git_spice and config.values.git_spice.executable) or "git-spice"
 end
 
----Run a git-spice subcommand synchronously.
+---Methods shared by every git-spice result, mirroring neogit's ProcessResult
+---interface so call sites can treat spice and git CLI returns the same way.
+local Result = {}
+Result.__index = Result
+
+---@return boolean
+function Result:success()
+  return self.code == 0
+end
+
+---@return boolean
+function Result:failure()
+  return self.code ~= 0
+end
+
+---Single-string error suitable for notifications. Prefers stderr.
+---@return string
+function Result:error_message()
+  local function joined(t)
+    return vim.trim(table.concat(t, "\n"))
+  end
+  local err = joined(self.stderr)
+  if err == "" then
+    err = joined(self.stdout)
+  end
+  return err
+end
+
+local function split_lines(s)
+  if s == nil or s == "" then
+    return {}
+  end
+  return vim.split(s, "\n", { plain = true, trimempty = true })
+end
+
+---Run a git-spice subcommand synchronously and wrap the output in a
+---ProcessResult-compatible object.
 ---@param argv string[]
----@return { code: integer, stdout: string, stderr: string }
+---@return ProcessResult
 local function run(argv)
   local cmd = { executable() }
   for _, a in ipairs(argv) do
@@ -27,11 +63,12 @@ local function run(argv)
 
   logger.debug("[git-spice] " .. table.concat(cmd, " "))
   local res = vim.system(cmd, { text = true }):wait()
-  return {
+  return setmetatable({
     code = res.code or 1,
-    stdout = res.stdout or "",
-    stderr = res.stderr or "",
-  }
+    stdout = split_lines(res.stdout),
+    stderr = split_lines(res.stderr),
+    cmd = table.concat(cmd, " "),
+  }, Result)
 end
 
 ---Try locally-known remote HEAD via `git symbolic-ref`. Returns nil when the
@@ -120,32 +157,21 @@ end
 ---parent without first switching to it.
 ---@param name string
 ---@param target string|nil
----@return boolean ok
----@return string? err
+---@return ProcessResult
 function M.branch_create(name, target)
   local argv = { "branch", "create", "--no-commit", name }
   if target and target ~= "" then
     argv[#argv + 1] = "--target"
     argv[#argv + 1] = target
   end
-
-  local res = run(argv)
-  if res.code ~= 0 then
-    return false, vim.trim(res.stderr ~= "" and res.stderr or res.stdout)
-  end
-  return true, nil
+  return run(argv)
 end
 
 ---Submit the current branch and every ancestor (downstack) — i.e. its
 ---dependencies — but leave branches built on top alone.
----@return boolean ok
----@return string? err
+---@return ProcessResult
 function M.downstack_submit()
-  local res = run { "downstack", "submit", "--fill" }
-  if res.code ~= 0 then
-    return false, vim.trim(res.stderr ~= "" and res.stderr or res.stdout)
-  end
-  return true, nil
+  return run { "downstack", "submit", "--fill" }
 end
 
 ---Read the current HEAD commit SHA (or nil if detached/empty/error).
@@ -164,22 +190,16 @@ end
 ---forge so reviewers see the new branch name.
 ---@param old string
 ---@param new string
----@return boolean ok
----@return string? err
+---@return ProcessResult
 function M.branch_rename(old, new)
-  local res = run { "branch", "rename", old, new }
-  if res.code ~= 0 then
-    return false, vim.trim(res.stderr ~= "" and res.stderr or res.stdout)
-  end
-  return true, nil
+  return run { "branch", "rename", old, new }
 end
 
 ---Delete a tracked branch. git-spice removes the local branch, the data
 ---store entry, and re-parents any children onto the deleted branch's parent.
 ---@param name string
 ---@param opts? { force?: boolean }
----@return boolean ok
----@return string? err
+---@return ProcessResult
 function M.branch_delete(name, opts)
   opts = opts or {}
   local argv = { "branch", "delete" }
@@ -187,51 +207,35 @@ function M.branch_delete(name, opts)
     argv[#argv + 1] = "--force"
   end
   argv[#argv + 1] = name
-
-  local res = run(argv)
-  if res.code ~= 0 then
-    return false, vim.trim(res.stderr ~= "" and res.stderr or res.stdout)
-  end
-  return true, nil
+  return run(argv)
 end
 
 ---Fetch trunk, prune branches whose PRs have been merged, and re-parent any
 ---descendants onto trunk. Does network IO.
----@return boolean ok
----@return string? err
+---@return ProcessResult
 function M.repo_sync()
-  local res = run { "repo", "sync" }
-  if res.code ~= 0 then
-    return false, vim.trim(res.stderr ~= "" and res.stderr or res.stdout)
-  end
-  return true, nil
+  return run { "repo", "sync" }
 end
 
----Rebase the current branch onto its tracked parent. Returns a third value
----`changed` indicating whether HEAD actually moved, so callers can suppress
+---Rebase the current branch onto its tracked parent. The result also has a
+---`changed` field (true when HEAD actually moved) so callers can suppress
 ---"restacked" messages when nothing happened.
----@return boolean ok
----@return string? err
----@return boolean changed
+---@return ProcessResult & { changed: boolean }
 function M.branch_restack()
   local before = head_sha()
-  local res = run { "branch", "restack" }
-  if res.code ~= 0 then
-    return false, vim.trim(res.stderr ~= "" and res.stderr or res.stdout), false
-  end
+  local result = run { "branch", "restack" }
   local after = head_sha()
-  local changed = before ~= nil and after ~= nil and before ~= after
-  return true, nil, changed
+  result.changed = result:success() and before ~= nil and after ~= nil and before ~= after
+  return result
 end
 
----Notify the user that git-spice is unavailable and they may need to run
----`gs repo init`. Used as a fallback path when a spice command fails because
----the repo isn't initialized.
+---Convenience: emit a neogit error notification for a failed spice command.
 ---@param context string
----@param err string?
-function M.notify_failure(context, err)
+---@param result ProcessResult
+function M.notify_failure(context, result)
   local message = ("git-spice %s failed"):format(context)
-  if err and err ~= "" then
+  local err = result:error_message()
+  if err ~= "" then
     message = message .. ":\n" .. err
   end
   notification.error(message)

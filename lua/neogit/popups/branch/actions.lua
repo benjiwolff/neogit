@@ -33,21 +33,21 @@ local function checkout_branch(target, args)
   if git.spice.enabled() and not git.spice.is_trunk(target) then
     -- Sync first so any PRs that merged since the last sync get cleaned up
     -- and descendants get re-parented before we try to restack.
-    local sync_ok, sync_err = git.spice.repo_sync()
-    if not sync_ok and sync_err and sync_err ~= "" then
-      git.spice.notify_failure("repo sync", sync_err)
+    local sync = git.spice.repo_sync()
+    if sync:failure() then
+      git.spice.notify_failure("repo sync", sync)
     end
 
-    local ok, err, changed = git.spice.branch_restack()
-    if ok then
-      if changed then
+    local restack = git.spice.branch_restack()
+    if restack:success() then
+      if restack.changed then
         notification.info("Restacked " .. target, { dismiss = true })
       end
-    elseif err and err ~= "" then
+    else
       -- Restack failures are noisy but non-fatal — typically just "branch is
       -- not tracked by git-spice". Surface them so the user can see what
       -- happened, but don't bail out of the checkout flow.
-      git.spice.notify_failure("branch restack", err)
+      git.spice.notify_failure("branch restack", restack)
     end
   end
 
@@ -267,19 +267,17 @@ function M.rename_branch()
     return
   end
 
-  local success
+  local result
   if git.spice.enabled() then
-    local ok, err = git.spice.branch_rename(selected_branch, new_name)
-    success = ok
-    if not ok then
-      git.spice.notify_failure("branch rename", err)
+    result = git.spice.branch_rename(selected_branch, new_name)
+    if result:failure() then
+      git.spice.notify_failure("branch rename", result)
     end
   else
-    local result = git.cli.branch.move.args(selected_branch, new_name).call { await = true }
-    success = result:success()
+    result = git.cli.branch.move.args(selected_branch, new_name).call { await = true }
   end
 
-  if success then
+  if result:success() then
     notification.info(string.format("Renamed '%s' to '%s'", selected_branch, new_name))
     event.send("BranchRename", { branch_name = selected_branch, new_name = new_name })
   else
