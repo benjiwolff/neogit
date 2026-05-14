@@ -180,7 +180,7 @@ end
 ---dependencies — but leave branches built on top alone.
 ---@return ProcessResult
 function M.downstack_submit()
-  return run { "downstack", "submit", "--fill" }
+  return run { "downstack", "submit", "--fill", "--draft" }
 end
 
 ---Read the current HEAD commit SHA (or nil if detached/empty/error).
