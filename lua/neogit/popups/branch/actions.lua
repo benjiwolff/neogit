@@ -38,6 +38,20 @@ local function checkout_branch(target, args)
       git.spice.notify_failure("repo sync", sync)
     end
 
+    -- `gs repo sync` will detect that `target`'s PR has been merged, delete
+    -- the local branch, and switch HEAD to trunk. In that case there's
+    -- nothing left to restack — just tell the user what happened and bail
+    -- before `gs branch restack` errors with "trunk cannot be restacked".
+    local current = git.branch.current()
+    if current ~= target then
+      local msg = ("'%s' was merged upstream"):format(target)
+      if current then
+        msg = msg .. "; switched to " .. current
+      end
+      notification.info(msg, { dismiss = true })
+      return
+    end
+
     local restack = git.spice.branch_restack()
     if restack:success() then
       if restack.changed then
