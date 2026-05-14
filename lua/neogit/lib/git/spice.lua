@@ -39,10 +39,9 @@ end
 ---@param remote string
 ---@return string|nil
 local function local_remote_head(remote)
-  local res = vim.system(
-    { "git", "symbolic-ref", "--short", "refs/remotes/" .. remote .. "/HEAD" },
-    { text = true }
-  ):wait()
+  local res = vim
+    .system({ "git", "symbolic-ref", "--short", "refs/remotes/" .. remote .. "/HEAD" }, { text = true })
+    :wait()
   if res.code ~= 0 then
     return nil
   end
@@ -58,10 +57,7 @@ end
 ---@param remote string
 ---@return string|nil
 local function ls_remote_head(remote)
-  local res = vim.system(
-    { "git", "ls-remote", "--symref", remote, "HEAD" },
-    { text = true }
-  ):wait()
+  local res = vim.system({ "git", "ls-remote", "--symref", remote, "HEAD" }, { text = true }):wait()
   if res.code ~= 0 then
     return nil
   end
