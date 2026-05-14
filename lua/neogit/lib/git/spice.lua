@@ -5,10 +5,22 @@ local logger = require("neogit.logger")
 ---@class NeogitGitSpice
 local M = {}
 
+---True when the user opted into the integration AND git-spice can actually
+---operate on this repo (binary present and `gs repo init` has been run).
+---Probes once per session via a read-only spice command; call `invalidate()`
+---to re-check after running `gs repo init` interactively.
 ---@return boolean
 function M.enabled()
+  if M._enabled_cache ~= nil then
+    return M._enabled_cache
+  end
   local cfg = config.values.git_spice
-  return cfg ~= nil and cfg.enabled == true
+  if not (cfg and cfg.enabled) then
+    M._enabled_cache = false
+    return false
+  end
+  M._enabled_cache = run({ "ls" }):success()
+  return M._enabled_cache
 end
 
 ---@return string
@@ -143,6 +155,7 @@ end
 ---that might rename the trunk.
 function M.invalidate()
   M._trunk_cache = nil
+  M._enabled_cache = nil
 end
 
 ---@param branch string
