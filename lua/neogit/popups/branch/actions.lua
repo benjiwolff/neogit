@@ -42,14 +42,27 @@ local function checkout_branch(target, args)
     -- the local branch, and switch HEAD to trunk. In that case there's
     -- nothing left to restack — just tell the user what happened and bail
     -- before `gs branch restack` errors with "trunk cannot be restacked".
-    local current = git.branch.current()
-    if current ~= target then
+    -- We check if the target branch still exists to determine if it was merged.
+    local branch_exists = vim.tbl_contains(git.refs.list_local_branches(), target)
+    if not branch_exists then
+      local current = git.branch.current()
       local msg = ("'%s' was merged upstream"):format(target)
       if current then
         msg = msg .. "; switched to " .. current
       end
       notification.info(msg, { dismiss = true })
       return
+    end
+
+    -- Ensure we're on the target branch before restacking, in case repo sync
+    -- switched us to a different branch temporarily.
+    local current = git.branch.current()
+    if current ~= target then
+      local result = git.branch.checkout(target, args)
+      if result:failure() then
+        notification.error(("Failed to checkout '%s' after sync"):format(target))
+        return
+      end
     end
 
     local restack = git.spice.branch_restack()
