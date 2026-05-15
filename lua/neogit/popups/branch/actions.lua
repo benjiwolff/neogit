@@ -30,6 +30,41 @@ local function checkout_branch(target, args)
   event.send("BranchCheckout", { branch_name = target })
   notification.info("Checked out branch " .. target)
 
+  if git.spice.enabled() and not git.spice.is_trunk(target) then
+    -- Sync first so any PRs that merged since the last sync get cleaned up
+    -- and descendants get re-parented before we try to restack.
+    local sync = git.spice.repo_sync()
+    if sync:failure() then
+      git.spice.notify_failure("repo sync", sync)
+    end
+
+    -- `gs repo sync` will detect that `target`'s PR has been merged, delete
+    -- the local branch, and switch HEAD to trunk. In that case there's
+    -- nothing left to restack — just tell the user what happened and bail
+    -- before `gs branch restack` errors with "trunk cannot be restacked".
+    local current = git.branch.current()
+    if current ~= target then
+      local msg = ("'%s' was merged upstream"):format(target)
+      if current then
+        msg = msg .. "; switched to " .. current
+      end
+      notification.info(msg, { dismiss = true })
+      return
+    end
+
+    local restack = git.spice.branch_restack()
+    if restack:success() then
+      if restack.changed then
+        notification.info("Restacked " .. target, { dismiss = true })
+      end
+    else
+      -- Restack failures are noisy but non-fatal — typically just "branch is
+      -- not tracked by git-spice". Surface them so the user can see what
+      -- happened, but don't bail out of the checkout flow.
+      git.spice.notify_failure("branch restack", restack)
+    end
+  end
+
   if config.values.fetch_after_checkout then
     a.void(function()
       local pushRemote = git.branch.pushRemote_ref(target)
@@ -246,7 +281,16 @@ function M.rename_branch()
     return
   end
 
-  local result = git.cli.branch.move.args(selected_branch, new_name).call { await = true }
+  local result
+  if git.spice.enabled() then
+    result = git.spice.branch_rename(selected_branch, new_name)
+    if result:failure() then
+      git.spice.notify_failure("branch rename", result)
+    end
+  else
+    result = git.cli.branch.move.args(selected_branch, new_name).call { await = true }
+  end
+
   if result:success() then
     notification.info(string.format("Renamed '%s' to '%s'", selected_branch, new_name))
     event.send("BranchRename", { branch_name = selected_branch, new_name = new_name })

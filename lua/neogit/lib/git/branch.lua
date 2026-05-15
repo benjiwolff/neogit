@@ -164,6 +164,19 @@ end
 ---@param base_branch? string
 ---@return boolean
 function M.create(name, base_branch)
+  if git.spice.enabled() then
+    local target
+    if base_branch and base_branch ~= "" and base_branch ~= M.current() then
+      target = base_branch
+    end
+
+    local result = git.spice.branch_create(name, target)
+    if result:failure() then
+      git.spice.notify_failure("branch create", result)
+    end
+    return result:success()
+  end
+
   return git.cli.branch.args(name, base_branch).call({ await = true }):success()
 end
 
@@ -176,10 +189,18 @@ function M.delete(name)
   if M.is_unmerged(name) then
     local message = ("'%s' contains unmerged commits! Are you sure you want to delete it?"):format(name)
     if input.get_permission(message) then
-      result = git.cli.branch.delete.force.name(name).call { await = true }
+      if git.spice.enabled() then
+        result = git.spice.branch_delete(name, { force = true })
+      else
+        result = git.cli.branch.delete.force.name(name).call { await = true }
+      end
     end
   else
-    result = git.cli.branch.delete.name(name).call { await = true }
+    if git.spice.enabled() then
+      result = git.spice.branch_delete(name)
+    else
+      result = git.cli.branch.delete.name(name).call { await = true }
+    end
   end
 
   return result and result:success() or false
