@@ -176,11 +176,10 @@ function M.branch_create(name, target)
   return run(argv)
 end
 
----Submit the current branch and every ancestor (downstack) — i.e. its
----dependencies — but leave branches built on top alone.
+---Submit the current branch only.
 ---@return ProcessResult
-function M.downstack_submit()
-  return run { "downstack", "submit", "--fill" }
+function M.branch_submit()
+  return run { "branch", "submit", "--fill" }
 end
 
 ---Read the current HEAD commit SHA (or nil if detached/empty/error).
