@@ -65,10 +65,11 @@ local function run(argv)
   }, Result)
 end
 
----True when the user opted into the integration AND git-spice can actually
----operate on the current repo (binary present and `gs repo init` has been
----run). Re-probes on every call so switching repos always reflects the
----current working directory.
+---True when the user opted into the integration AND `gs repo init` has been
+---run for the current repo. Probed by looking for git-spice's on-disk data
+---store under the git dir — cheaper than spawning gs, and "data store
+---exists" is exactly the question we care about. Re-probes on every call so
+---switching repos always reflects the current working directory.
 ---@return boolean
 function M.enabled()
   local cfg = config.values.git_spice
@@ -77,20 +78,20 @@ function M.enabled()
     return false
   end
 
-  local result = run { "ls" }
-  if result:success() then
-    logger.debug("[git-spice] enabled() = true")
-    return true
+  local res = vim.system({ "git", "rev-parse", "--git-path", "spice" }, { text = true }):wait()
+  if res.code ~= 0 then
+    logger.debug("[git-spice] enabled() = false: not inside a git work tree")
+    return false
   end
 
-  logger.debug(
-    ("[git-spice] enabled() = false: `%s ls` exited %d (%s)"):format(
-      executable(),
-      result.code,
-      result:error_message()
-    )
-  )
-  return false
+  local path = vim.trim(res.stdout or "")
+  if path == "" or vim.fn.isdirectory(path) == 0 then
+    logger.debug("[git-spice] enabled() = false: " .. path .. " does not exist (run `gs repo init`)")
+    return false
+  end
+
+  logger.debug("[git-spice] enabled() = true (" .. path .. ")")
+  return true
 end
 
 ---Try locally-known remote HEAD via `git symbolic-ref`. Returns nil when the
