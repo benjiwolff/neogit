@@ -78,14 +78,20 @@ function M.enabled()
     return false
   end
 
-  local res = vim.system({ "git", "rev-parse", "--git-path", "spice" }, { text = true }):wait()
+  local res = vim.system({ "git", "rev-parse", "--git-common-dir" }, { text = true }):wait()
   if res.code ~= 0 then
     logger.debug("[git-spice] enabled() = false: not inside a git work tree")
     return false
   end
 
-  local path = vim.trim(res.stdout or "")
-  if path == "" or vim.fn.isdirectory(path) == 0 then
+  local git_common_dir = vim.trim(res.stdout or "")
+  if git_common_dir == "" then
+    logger.debug("[git-spice] enabled() = false: git-common-dir is empty")
+    return false
+  end
+
+  local path = git_common_dir .. "/refs/spice"
+  if vim.fn.isdirectory(path) == 0 then
     logger.debug("[git-spice] enabled() = false: " .. path .. " does not exist (run `gs repo init`)")
     return false
   end
