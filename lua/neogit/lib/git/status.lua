@@ -77,9 +77,13 @@ local match_2 = "(.)(.) (....) (%d+) (%d+) (%d+) (%w+) (%w+) (%a%d+) ([^\t]+)\t?
 
 local function item_collection(state, section, filter)
   local items = state[section].items or {}
+  logger.info(("[DEBUG-DI:item_collection] section=%s items=%d filter=%s"):format(section, #items, vim.inspect(filter, { newline = " ", indent = "" }))) -- DEBUG-DI
   for _, item in ipairs(items) do
-    if filter:accepts(section, item.name) then
+    local accepted = filter:accepts(section, item.name) -- DEBUG-DI
+    logger.info(("[DEBUG-DI:item_collection]   item.name=%q accepts=%s"):format(item.name, tostring(accepted))) -- DEBUG-DI
+    if accepted then
       logger.debug(("[STATUS] Invalidating cached diff for: %s"):format(item.name))
+      logger.info(("[DEBUG-DI:item_collection]   -> invalidating+rebuilding diff for %q"):format(item.name)) -- DEBUG-DI
       item.diff = nil
       git.diff.build(section, item)
     end
@@ -108,7 +112,9 @@ local function update_status(state, filter)
 
   local status_cmd = git.cli.status.null_separated.porcelain(2)
   local file = filter[1].file
+  logger.info(("[DEBUG-DI:update_status] filter[1].file=%q status.fast=%s -> scoped=%s"):format(tostring(file), tostring(config.values.status.fast), tostring(config.values.status.fast and file ~= "*"))) -- DEBUG-DI
   if config.values.status.fast and file ~= "*" then
+    logger.info(("[DEBUG-DI:update_status] SCOPED git status for file=%q (git expects repo-relative path)"):format(file)) -- DEBUG-DI
     status_cmd.args(file)
     ---@param item StatusItem
     ---@return boolean
@@ -124,6 +130,7 @@ local function update_status(state, filter)
     state.unstaged.items = {}
   end
   local result = status_cmd.call { hidden = true, remove_ansi = false }
+  logger.info(("[DEBUG-DI:update_status] git status returned %d stdout line(s): %s"):format(#result.stdout, vim.inspect(result.stdout, { newline = " ", indent = "" }))) -- DEBUG-DI
   result = vim.split(result.stdout[1] or "", "\n")
   result = util.collect(result, function(line, collection)
     if line == "" then

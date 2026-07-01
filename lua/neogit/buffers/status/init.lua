@@ -25,11 +25,14 @@ local instances = {}
 vim.api.nvim_create_autocmd("BufWritePost", {
   pattern = "*",
   callback = function(args)
+    logger.info(("[DEBUG-DI:init-ac] BufWritePost file=%s status.fast=%s instances=%d"):format(args.file, tostring(config.values.status.fast), vim.tbl_count(instances))) -- DEBUG-DI
     if not config.values.status.fast then
+      logger.info("[DEBUG-DI:init-ac] bail: status.fast is falsy") -- DEBUG-DI
       return
     end
 
     for _, buf in pairs(instances) do
+      logger.info(("[DEBUG-DI:init-ac] refresh buf -> update_diffs={'*:%s'} (is args.file absolute?)"):format(args.file)) -- DEBUG-DI
       buf:refresh {
         update_diffs = { "*:" .. args.file },
       }
@@ -341,6 +344,7 @@ local reasons_for_status_update_only = {
 
 function M:refresh(partial, reason)
   logger.debug("[STATUS] Beginning refresh from " .. (reason or "UNKNOWN"))
+  logger.info(("[DEBUG-DI:refresh] reason=%s update_diffs=%s focused=%s"):format(tostring(reason), vim.inspect((partial or {}).update_diffs), tostring(self.buffer and self.buffer:is_focused()))) -- DEBUG-DI
 
   -- Needs to be captured _before_ refresh because the diffs are needed, but will be changed by refreshing.
   local cursor, view
@@ -356,6 +360,7 @@ function M:refresh(partial, reason)
   end
 
   if vim.tbl_contains(reasons_for_status_update_only, reason) then
+    logger.info("[DEBUG-DI:refresh] branch=status_update_only (sync update_status)") -- DEBUG-DI
     vim.uv.update_time()
     local start = vim.uv.now()
     git.repo.lib.update_status(
@@ -365,6 +370,7 @@ function M:refresh(partial, reason)
     git.repo:set_state(start)
     callback()
   else
+    logger.info("[DEBUG-DI:refresh] branch=dispatch_refresh (async, full task set)") -- DEBUG-DI
     git.repo:dispatch_refresh {
       source = "status",
       partial = partial,
@@ -381,6 +387,7 @@ function M:redraw(cursor, view)
     return
   end
 
+  logger.info(("[DEBUG-DI:redraw] rendering UI; staged=%d unstaged=%d untracked=%d"):format(#git.repo.state.staged.items, #git.repo.state.unstaged.items, #git.repo.state.untracked.items)) -- DEBUG-DI
   logger.debug("[STATUS] Rendering UI")
   self.buffer.ui:render(unpack(ui.Status(git.repo.state, self.config)))
 
