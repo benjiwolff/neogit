@@ -124,6 +124,7 @@ end
 ---@field set fun(key: string, value: string): self
 ---@field unset fun(key: string): self
 ---@field get fun(path: string): self
+---@field get_all fun(key: string): self
 
 ---@class GitCommandDescribe: GitCommandBuilder
 ---@field long self
@@ -303,6 +304,7 @@ end
 
 ---@class GitCommandLsFiles: GitCommandBuilder
 ---@field others self
+---@field unmerged self
 ---@field deleted self
 ---@field modified self
 ---@field cached self
@@ -939,6 +941,7 @@ local configurations = {
 
   ["ls-files"] = config {
     flags = {
+      unmerged = "--unmerged",
       others = "--others",
       deleted = "--deleted",
       modified = "--modified",

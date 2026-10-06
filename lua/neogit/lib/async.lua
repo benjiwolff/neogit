@@ -368,7 +368,7 @@ end
 --- Use sparingly.
 ---@param async_fn function
 ---@param timeout number|nil  Milliseconds to wait before giving up (default 2000).
----@return any
+---@return any, ...
 function M.util.block_on(async_fn, timeout)
   local outcome = nil
 

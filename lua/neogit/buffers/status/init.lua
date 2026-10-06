@@ -282,6 +282,8 @@ function M:open(kind)
       ["NeogitReset"] = self:deferred_refresh("reset"),
       ["NeogitBranchReset"] = self:deferred_refresh("reset_branch"),
       ["NeogitEditorClosed"] = self:deferred_refresh("editor_closed"),
+      ["NeogitFetchComplete"] = self:deferred_refresh("fetch"),
+      ["NeogitMerge"] = self:deferred_refresh("merge"),
     },
     autocmds = {
       ["FocusGained"] = self:deferred_refresh("focused", 10),
@@ -407,8 +409,19 @@ function M:redraw(cursor, view)
   end
 end
 
+local refresh_scheduled = false
+
 M.dispatch_refresh = a.void(function(self, partial, reason)
-  self:refresh(partial, reason)
+  if refresh_scheduled then
+    return
+  end
+
+  refresh_scheduled = true
+
+  vim.schedule(function()
+    refresh_scheduled = false
+    self:refresh(partial, reason)
+  end)
 end)
 
 ---@param reason string

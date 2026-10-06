@@ -18,6 +18,7 @@ M.EmptyLine = Component.new(function()
   return col { row { text("") } }
 end)
 
+---@param diff Diff
 M.Diff = Component.new(function(diff)
   return col.tag("Diff")({
     text(string.format("%s %s", diff.kind, diff.file), { line_hl = "NeogitDiffHeader" }),
@@ -25,6 +26,7 @@ M.Diff = Component.new(function(diff)
   }, { foldable = true, folded = false, context = true, diff = diff })
 end)
 
+---@param diff Diff
 M.DiffHunks = Component.new(function(diff)
   local hunk_props = {}
   for i, hunk in ipairs(diff.hunks) do

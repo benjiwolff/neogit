@@ -279,15 +279,15 @@ function M.setup(config)
     NeogitChangeNstaged            = { link = "NeogitChangeNewFile" },
     NeogitChangeDstaged            = { link = "NeogitChangeDeleted" },
     NeogitChangeCstaged            = { link = "NeogitChangeCopied" },
-    NeogitChangeUstaged            = { link = "NeogitChangeUpdated" },
+    NeogitChangeUstaged            = { link = "NeogitChangeUpdated" }, -- typos: ignore
     NeogitChangeRstaged            = { link = "NeogitChangeRenamed" },
     NeogitChangeTstaged            = { link = "NeogitChangeUpdated" },
     NeogitChangeDDstaged           = { link = "NeogitChangeUnmerged" },
-    NeogitChangeUUstaged           = { link = "NeogitChangeUnmerged" },
+    NeogitChangeUUstaged           = { link = "NeogitChangeUnmerged" }, -- typos: ignore
     NeogitChangeAAstaged           = { link = "NeogitChangeUnmerged" },
-    NeogitChangeDUstaged           = { link = "NeogitChangeUnmerged" },
+    NeogitChangeDUstaged           = { link = "NeogitChangeUnmerged" }, -- typos: ignore
     NeogitChangeUDstaged           = { link = "NeogitChangeUnmerged" },
-    NeogitChangeAUstaged           = { link = "NeogitChangeUnmerged" },
+    NeogitChangeAUstaged           = { link = "NeogitChangeUnmerged" }, -- typos: ignore
     NeogitChangeUAstaged           = { link = "NeogitChangeUnmerged" },
     NeogitChangeUntrackedstaged    = { fg = "None" },
     NeogitChangeModified           = { fg = palette.bg_blue, bold = palette.bold, italic = palette.italic, ctermfg = 4 },

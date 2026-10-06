@@ -6,6 +6,7 @@ local input = require("neogit.lib.input")
 local util = require("neogit.lib.util")
 local notification = require("neogit.lib.notification")
 local event = require("neogit.lib.event")
+local hook = require("neogit.lib.hook")
 local a = require("neogit.lib.async")
 
 local FuzzyFinderBuffer = require("neogit.buffers.fuzzy_finder")
@@ -21,6 +22,8 @@ local function fetch_remote_branch(target)
 end
 
 local function checkout_branch(target, args)
+  hook.run("PreBranchCheckout", { branch_name = target })
+
   local result = git.branch.checkout(target, args)
   if result:failure() then
     notification.error(table.concat(result.stderr, "\n"))
@@ -121,6 +124,7 @@ local function spin_off_branch(checkout)
   local current_branch_name = git.branch.current_full_name()
 
   if checkout then
+    hook.run("PreBranchCheckout", { branch_name = name })
     git.cli.checkout.branch(name).call()
     event.send("BranchCheckout", { branch_name = name })
   end
@@ -211,6 +215,10 @@ function M.checkout_branch_revision(popup)
       git.refs.heads()
     )
   )
+  if git.branch.current() then
+    util.remove_item_from_table(options, git.branch.current())
+  end
+
   local selected_branch = FuzzyFinderBuffer.new(options):open_async { refocus_status = false }
   if not selected_branch then
     return
@@ -221,6 +229,10 @@ end
 
 function M.checkout_local_branch(popup)
   local local_branches = git.refs.list_local_branches()
+  if git.branch.current() then
+    util.remove_item_from_table(local_branches, git.branch.current())
+  end
+
   local remote_branches = util.filter_map(git.refs.list_remote_branches(), function(name)
     local branch_name = name:match([[%/(.*)$]])
     -- Remove remote branches that have a local branch by the same name
@@ -236,6 +248,8 @@ function M.checkout_local_branch(popup)
   }
 
   if target then
+    hook.run("PreBranchCheckout", { branch_name = target })
+
     if vim.tbl_contains(remote_branches, target) then
       local result = git.branch.track(target, popup:get_arguments())
       if result:failure() then

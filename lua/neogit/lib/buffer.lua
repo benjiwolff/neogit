@@ -131,10 +131,6 @@ function Buffer:insert_line(line)
   api.nvim_buf_set_lines(self.handle, line_nr, line_nr, false, { line })
 end
 
-function Buffer:resize(length)
-  api.nvim_buf_set_lines(self.handle, length, -1, false, {})
-end
-
 function Buffer:set_highlights(highlights)
   for _, highlight in ipairs(highlights) do
     self:add_highlight(unpack(highlight))
@@ -249,7 +245,14 @@ function Buffer:close(force)
       self.old_cwd = nil
     end
 
-    api.nvim_buf_delete(self.handle, { force = force })
+    if self.old_buf and api.nvim_buf_is_valid(self.old_buf) then
+      local ok = pcall(api.nvim_win_set_buf, self.win_handle, self.old_buf)
+      if not ok then
+        vim.cmd.enew()
+      end
+    else
+      vim.cmd.enew()
+    end
     return
   end
 
@@ -527,10 +530,6 @@ end
 function Buffer:clear_namespace(name)
   assert(name, "Cannot clear namespace without specifying which")
 
-  if not self:is_focused() then
-    return
-  end
-
   local ns_id = self:get_namespace_id(name)
   if ns_id then
     api.nvim_buf_clear_namespace(self.handle, ns_id, 0, -1)
@@ -727,6 +726,12 @@ function Buffer.create(config)
   assert(config, "Buffers work better if you configure them")
 
   local buffer = Buffer.from_name(config.name)
+
+  local existing_buftype = buffer:get_option("buftype")
+  if existing_buftype == "terminal" and config.buftype ~= "terminal" then
+    api.nvim_buf_delete(buffer.handle, { force = true })
+    buffer = Buffer.from_name(config.name)
+  end
 
   buffer.name = config.name
   buffer.kind = config.kind or "split"
@@ -942,7 +947,11 @@ function Buffer.create(config)
       on_start = function()
         return buffer:exists() and buffer:is_valid()
       end,
-      on_win = function()
+      on_win = function(_, _, bufnr)
+        if bufnr ~= buffer.handle then
+          return false
+        end
+
         buffer:clear_namespace("ActiveItem")
 
         local active_oid = require("neogit.buffers.commit_view").current_oid()

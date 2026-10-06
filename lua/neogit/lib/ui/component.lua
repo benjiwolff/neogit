@@ -34,6 +34,7 @@ local default_component_options = {
 ---@field filepath string
 ---@field filename string?
 ---@field value any
+---@field diff Diff?
 
 ---@class Component
 ---@field position ComponentPosition

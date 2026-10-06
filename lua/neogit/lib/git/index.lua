@@ -125,7 +125,7 @@ end
 
 function M.checkout_unstaged()
   local items = util.map(git.repo.state.unstaged.items, function(item)
-    return item.escaped_path
+    return item.name
   end)
 
   return git.cli.checkout.files(unpack(items)).call { await = true }

@@ -99,6 +99,7 @@ end
 ---| "vsplit" Open in a vertical split
 ---| "floating" Open in a floating window
 ---| "floating_console" Open in a floating window across the bottom of the screen
+---| "popup" Open in a popup
 ---| "auto" vsplit if window would have 80 cols, otherwise split
 
 ---@class NeogitCommitBufferConfig Commit buffer options
@@ -325,6 +326,9 @@ end
 ---| "author-date"
 ---| "date"
 
+---@alias NeogitHook
+---| "PreBranchCheckout"
+
 ---@class NeogitConfigStatusOptions
 ---@field recent_commit_count? integer The number of recent commits to display
 ---@field mode_padding? integer The amount of padding to add to the right of the mode column
@@ -409,6 +413,7 @@ end
 ---@field treesitter_diff_highlight? boolean Apply syntax highlighting to diff hunks via treesitter
 ---@field word_diff_highlight? boolean Apply word-diff highlighting to diff hunks
 ---@field builders? { [string]: fun(builder: PopupBuilder) }
+---@field hooks? { [NeogitHook]: fun(data: table?) }
 
 ---Returns the default Neogit configuration
 ---@return NeogitConfig
@@ -427,6 +432,7 @@ function M.get_default_values()
     log_date_format = nil,
     log_pager = nil,
     process_spinner = false,
+    hooks = {},
     filewatcher = {
       enabled = true,
     },
@@ -542,7 +548,7 @@ function M.get_default_values()
       kind = "floating_console",
     },
     popup = {
-      kind = "split",
+      kind = "popup",
       show_title = false,
     },
     stash = {
@@ -813,13 +819,14 @@ function M.validate_config()
         "floating",
         "floating_console",
         "replace",
+        "popup",
         "auto",
       }, val)
     then
       err(
         name,
         string.format(
-          "Expected `%s` to be one of 'split', 'vsplit', 'split_above', 'vsplit_left', tab', 'floating', 'replace' or 'auto', got '%s'",
+          "Expected `%s` to be one of 'split', 'vsplit', 'split_above', 'split_above_all', 'split_below', 'split_below_all', 'vsplit_left', tab', 'floating', 'floating_console', 'replace', 'popup' or 'auto', got '%s'",
           name,
           val
         )
