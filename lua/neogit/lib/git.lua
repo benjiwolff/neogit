@@ -23,7 +23,6 @@
 ---@field rev_parse   NeogitGitRevParse
 ---@field revert      NeogitGitRevert
 ---@field sequencer   NeogitGitSequencer
----@field spice       NeogitGitSpice
 ---@field stash       NeogitGitStash
 ---@field status      NeogitGitStatus
 ---@field submodule   NeogitGitSubmodule
