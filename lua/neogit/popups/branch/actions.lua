@@ -22,6 +22,36 @@ local function fetch_remote_branch(target)
 end
 
 local function checkout_branch(target, args)
+  if not vim.tbl_contains(args or {}, "--detach") then
+    local root = vim.uv.fs_realpath(git.repo.worktree_root)
+    for _, worktree in ipairs(git.worktree.list()) do
+      if worktree.ref == "refs/heads/" .. target and vim.uv.fs_realpath(worktree.path) ~= root then
+        if worktree.main then
+          notification.error(
+            ("Branch %q is checked out in the main worktree at %q"):format(target, worktree.path)
+          )
+          return
+        end
+
+        if
+          not input.get_permission(
+            ("Branch %q is checked out at %q. Remove that worktree and check out the branch here?"):format(
+              target,
+              worktree.path
+            )
+          )
+        then
+          return
+        end
+
+        if not git.worktree.remove(worktree.path) then
+          notification.error(("Could not remove worktree at %q; checkout aborted"):format(worktree.path))
+          return
+        end
+      end
+    end
+  end
+
   hook.run("PreBranchCheckout", { branch_name = target })
 
   local result = git.branch.checkout(target, args)
