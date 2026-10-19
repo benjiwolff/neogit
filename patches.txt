@@ -1,11 +1,6 @@
 These patches have not made it upstream yet (or never will):
-* fix-log-multi-commit-diff: show multi-commit diffs in forward order,
-  including the first selected commit. Incorporated as the initial branch base.
-  https://github.com/NeogitOrg/neogit/pull/1784
-* feature-fast-commit: speed up commits using cached staged/unstaged state.
-  https://github.com/NeogitOrg/neogit/pull/1857
-* feat/checkout-remove-conflicting-worktree: offer to remove a conflicting
-  linked worktree before checking out its branch.
-* diff-unmerged-commits: diff all upstream or push-remote changes from the
-  merge base when selecting the corresponding status section header.
+* fix-log-multi-commit-diff: https://github.com/NeogitOrg/neogit/pull/1784
+* feature-fast-commit: https://github.com/NeogitOrg/neogit/pull/1857
+* feat/checkout-remove-conflicting-worktree
+* diff-unmerged-commits 
 * track-subdir-of-monorepo
