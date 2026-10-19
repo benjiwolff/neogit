@@ -109,11 +109,6 @@ end
 
 ---@param popup PopupData
 function M.commit(popup)
-  if not git.status.anything_staged() and not allow_empty(popup) then
-    notification.warn("No changes to commit.")
-    return
-  end
-
   do_commit(popup, git.cli.commit)
 end
 
