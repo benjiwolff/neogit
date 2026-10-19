@@ -323,6 +323,7 @@ function M:refresh(partial, reason)
   git.repo:dispatch_refresh {
     source = "status",
     partial = partial,
+    full_refresh = partial and partial.full_refresh,
     callback = function()
       self:redraw(cursor, view)
       event.send("StatusRefreshed")

@@ -87,7 +87,7 @@ local function item_collection(state, section, filter)
   return Collection.new(items):key_by("name")
 end
 
-local function update_status(state, filter)
+local function update_status(state, filter, status_path)
   local old_files = {
     staged_files = item_collection(state, "staged", filter),
     unstaged_files = item_collection(state, "unstaged", filter),
@@ -98,7 +98,11 @@ local function update_status(state, filter)
   state.untracked.items = {}
   state.unstaged.items = {}
 
-  local result = git.cli.status.null_separated.porcelain(2).call { hidden = true, remove_ansi = false }
+  local command = git.cli.status.null_separated.porcelain(2)
+  if status_path then
+    command = command.files(status_path)
+  end
+  local result = command.call { hidden = true, remove_ansi = false }
   result = vim.split(result.stdout[1] or "", "\n")
   result = util.collect(result, function(line, collection)
     if line == "" then
