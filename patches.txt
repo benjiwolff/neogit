@@ -1,6 +1,5 @@
 These patches have not made it upstream yet (or never will):
 * fix-log-multi-commit-diff: https://github.com/NeogitOrg/neogit/pull/1784
 * feature-fast-commit: https://github.com/NeogitOrg/neogit/pull/1857
-* feat/checkout-remove-conflicting-worktree
 * diff-unmerged-commits 
 * track-subdir-of-monorepo
