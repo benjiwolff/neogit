@@ -21,7 +21,13 @@ function M.this(popup)
   local item = popup:get_env("item")
   local section = popup:get_env("section")
 
-  if section and section.name and item and item.name then
+  local remote = section and ({ upstream_unmerged = "upstream", pushRemote_unmerged = "pushRemote" })[section.name]
+  if remote and not (item and item.name) then
+    local ref = git.repo.state[remote].ref
+    if ref then
+      get_diff_integration().open("range", ref .. "...HEAD")
+    end
+  elseif section and section.name and item and item.name then
     get_diff_integration().open(section.name, item.name, { only = true })
   elseif section.name then
     get_diff_integration().open(section.name, nil, { only = true })
