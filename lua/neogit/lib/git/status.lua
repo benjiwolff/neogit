@@ -92,8 +92,13 @@ end
 ---@field files string[]
 
 ---@return GitStatusSnapshot
-local function read_status()
-  local result = git.cli.status.null_separated.porcelain(2).branch.call { hidden = true, remove_ansi = false }
+---@param status_path? string
+local function read_status(status_path)
+  local command = git.cli.status.null_separated.porcelain(2).branch
+  if status_path then
+    command = command.files(status_path)
+  end
+  local result = command.call { hidden = true, remove_ansi = false }
   local lines = vim.split(result.stdout[1] or "", "\n")
   return {
     branch = git.branch.status(lines),

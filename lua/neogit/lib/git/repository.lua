@@ -172,6 +172,7 @@ end
 ---@class NeogitRepo
 ---@field lib               table
 ---@field state             NeogitRepoState
+---@field cwd               string Directory used to open the repository
 ---@field worktree_root     string Project root, or  worktree
 ---@field worktree_git_dir  string Dir to watch for changes in worktree
 ---@field git_dir           string '.git/' directory for repo
@@ -211,6 +212,7 @@ function Repo.new(dir)
   local instance = {
     lib = {},
     state = empty_state(),
+    cwd = vim.fs.normalize(dir),
     worktree_root = git.cli.worktree_root(dir),
     worktree_git_dir = git.cli.worktree_git_dir(dir),
     git_dir = git.cli.git_dir(dir),
@@ -327,7 +329,11 @@ function Repo:refresh(opts)
   end
 
   self._refresh_task = a.run(function()
-    local status = git.status.read()
+    local status_path
+    if not opts.full_refresh and self.cwd ~= self.worktree_root then
+      status_path = Path:new(self.cwd):make_relative(self.worktree_root)
+    end
+    local status = git.status.read(status_path)
     run_tasks(self:tasks(filter, self:current_state(start), status))
   end, function()
     if self._refresh_task and self._refresh_task:cancelled() then
