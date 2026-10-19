@@ -659,7 +659,7 @@ end
 ---@return fun(): nil
 M.n_refresh_buffer = function(self)
   return a.void(function()
-    self:dispatch_refresh({ update_diffs = { "*:*" } }, "n_refresh_buffer")
+    self:dispatch_refresh({ update_diffs = { "*:*" }, full_refresh = true }, "n_refresh_buffer")
   end)
 end
 

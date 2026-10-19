@@ -172,6 +172,7 @@ end
 ---@class NeogitRepo
 ---@field lib               table
 ---@field state             NeogitRepoState
+---@field cwd               string Directory used to open the repository
 ---@field worktree_root     string Project root, or  worktree
 ---@field worktree_git_dir  string Dir to watch for changes in worktree
 ---@field git_dir           string '.git/' directory for repo
@@ -211,6 +212,7 @@ function Repo.new(dir)
   local instance = {
     lib = {},
     state = empty_state(),
+    cwd = vim.fs.normalize(dir),
     worktree_root = git.cli.worktree_root(dir),
     worktree_git_dir = git.cli.worktree_git_dir(dir),
     git_dir = git.cli.git_dir(dir),
@@ -246,12 +248,12 @@ function Repo:git_path(...)
   return Path:new(self.git_dir):joinpath(...)
 end
 
-function Repo:tasks(filter, state)
+function Repo:tasks(filter, state, status_path)
   local tasks = {}
   for name, fn in pairs(self.lib) do
     table.insert(tasks, function()
       local start = vim.uv.now()
-      fn(state, filter)
+      fn(state, filter, status_path)
       logger.debug(("[REPO]: Refreshed %s in %d ms"):format(name, vim.uv.now() - start))
     end)
   end
@@ -319,7 +321,12 @@ function Repo:refresh(opts)
     filter = DEFAULT_FILTER
   end
 
-  self._refresh_task = a.util.run_all(self:tasks(filter, self:current_state(start)), function()
+  local status_path
+  if not opts.full_refresh and self.cwd ~= self.worktree_root then
+    status_path = Path:new(self.cwd):make_relative(self.worktree_root)
+  end
+
+  self._refresh_task = a.util.run_all(self:tasks(filter, self:current_state(start), status_path), function()
     if self._refresh_task and self._refresh_task:cancelled() then
       logger.debug("[REPO]: (" .. start .. ") Refresh cancelled before completion")
       return
