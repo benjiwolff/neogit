@@ -87,7 +87,37 @@ local function item_collection(state, section, filter)
   return Collection.new(items):key_by("name")
 end
 
-local function update_status(state, filter, status_path)
+---@class GitStatusSnapshot
+---@field branch BranchStatus
+---@field files string[]
+
+---@return GitStatusSnapshot
+---@param status_path? string
+local function read_status(status_path)
+  ---@type GitCommandBuilder
+  local command = git.cli.status.null_separated.porcelain(2).branch
+  if status_path then
+    command = command.files(status_path)
+  end
+  local result = command.call { hidden = true, remove_ansi = false }
+  local lines = vim.split(result.stdout[1] or "", "\n")
+  return {
+    branch = git.branch.status(lines),
+    files = util.collect(lines, function(line, collection)
+      if line == "" then
+        return
+      end
+
+      if line:match("^[12u]%s[%u%s%.%?!][%u%s%.%?!]%s") or line:match("^[%?!#]%s") then
+        table.insert(collection, line)
+      else
+        collection[#collection] = ("%s\t%s"):format(collection[#collection], line)
+      end
+    end),
+  }
+end
+
+local function update_status(state, filter, status)
   local old_files = {
     staged_files = item_collection(state, "staged", filter),
     unstaged_files = item_collection(state, "unstaged", filter),
@@ -98,23 +128,7 @@ local function update_status(state, filter, status_path)
   state.untracked.items = {}
   state.unstaged.items = {}
 
-  local command = git.cli.status.null_separated.porcelain(2)
-  if status_path then
-    command = command.files(status_path)
-  end
-  local result = command.call { hidden = true, remove_ansi = false }
-  result = vim.split(result.stdout[1] or "", "\n")
-  result = util.collect(result, function(line, collection)
-    if line == "" then
-      return
-    end
-
-    if line ~= "" and (line:match("^[12u]%s[%u%s%.%?!][%u%s%.%?!]%s") or line:match("^[%?!#]%s")) then
-      table.insert(collection, line)
-    else
-      collection[#collection] = ("%s\t%s"):format(collection[#collection], line)
-    end
-  end)
+  local result = (status or read_status()).files
 
   -- kinds:
   -- u = Unmerged
@@ -217,6 +231,8 @@ end
 
 ---@class NeogitGitStatus
 local M = {}
+
+M.read = read_status
 
 ---@param files string[]
 function M.stage(files)
