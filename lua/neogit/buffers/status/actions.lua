@@ -474,8 +474,15 @@ end
 M.v_diff_popup = function(self)
   return popups.open("diff", function(p)
     local section = self.buffer.ui:get_selection().section
-    local item = self.buffer.ui:get_commits_in_selection()
-    table.insert(item, 1, item[1] .. "~1")
+    local commits = self.buffer.ui:get_commits_in_selection()
+    ---@type string|string[]|nil
+    local item
+    if #commits > 0 then
+      table.insert(commits, 1, commits[1] .. "~1")
+      item = commits
+    else
+      item = self.buffer.ui:get_yankable_under_cursor()
+    end
     p { section = { name = section and section.name }, item = { name = item } }
   end)
 end
@@ -794,9 +801,8 @@ M.n_yank_selected = function(self)
         yank = git.rev_parse.oid(yank:match("^(stash@{%d+})"))
       end
 
-      yank = string.format("'%s'", yank)
-      vim.cmd.let("@+=" .. yank)
-      vim.cmd.echo(yank)
+      vim.fn.setreg("+", yank)
+      vim.cmd.echo(string.format("%q", yank))
     else
       vim.cmd("echo ''")
     end
