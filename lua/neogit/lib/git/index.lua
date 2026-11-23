@@ -74,8 +74,8 @@ function M.generate_patch(hunk, opts)
   local worktree_root = git.repo.worktree_root
   assert(hunk.file, "hunk has no filepath")
 
-  local path = Path:new(hunk.file):make_relative(worktree_root)
-  local eol = eol_character(path)
+  local path = hunk.file
+  local eol = eol_character(Path:new(worktree_root, path):absolute())
 
   table.insert(diff_content, 1, string.format("+++ b/%s", path))
   table.insert(diff_content, 1, string.format("--- a/%s", path))

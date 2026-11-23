@@ -22,6 +22,52 @@ local function run_with_hunk(hunk, from, to, reverse)
 end
 
 describe("patch creation", function()
+  describe("from a repository subdirectory", function()
+    local root, cwd, worktree_root
+    local git = require("neogit.lib.git")
+    local parse_diff = git.diff.parse
+
+    local function command(...)
+      local result = vim.system({ "git", "-C", root, ... }, { text = false }):wait()
+      eq(0, result.code, result.stderr)
+      return result.stdout
+    end
+
+    before_each(function()
+      cwd = vim.fn.getcwd()
+      worktree_root = git.repo.worktree_root
+      root = vim.fn.resolve(vim.fn.tempname())
+      vim.fn.mkdir(root .. "/sub", "p")
+      command("init")
+      command("config", "core.autocrlf", "false")
+      git.repo.worktree_root = root
+      vim.api.nvim_set_current_dir(root .. "/sub")
+    end)
+
+    after_each(function()
+      vim.api.nvim_set_current_dir(cwd)
+      git.repo.worktree_root = worktree_root
+      vim.fn.delete(root, "rf")
+    end)
+
+    for _, eol in ipairs { "\n", "\r\n" } do
+      it("stages only selected lines with " .. (eol == "\n" and "LF" or "CRLF") .. " endings", function()
+        local path = root .. "/sub/file.txt"
+        vim.fn.writefile(vim.split("one" .. eol, "\n"), path, "b")
+        command("add", "sub/file.txt")
+        vim.fn.writefile(vim.split("one" .. eol .. "two" .. eol .. "three" .. eol, "\n"), path, "b")
+
+        local diff = parse_diff(vim.split(command("diff", "--no-ext-diff", "--no-color"), "\r?\n"), {})
+        local patch = generate_patch_from_selection(diff.hunks[1], { from = 2, to = 2 })
+        eq("--- a/sub/file.txt", patch:match("[^\r\n]+"))
+        local result = vim.system({ "git", "-C", root, "apply", "--cached", "-" }, { stdin = patch }):wait()
+        eq(0, result.code, result.stderr)
+        eq("one" .. eol .. "two" .. eol, command("show", ":sub/file.txt"))
+        eq("one" .. eol .. "two" .. eol .. "three" .. eol, table.concat(vim.fn.readfile(path, "b"), "\n"))
+      end)
+    end
+  end)
+
   it("creates a patch-formatted string from a hunk", function()
     local patch = run_with_hunk(
       [['@@ -1,1 +1,1 @@
