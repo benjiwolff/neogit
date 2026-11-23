@@ -74,8 +74,8 @@ function M.generate_patch(hunk, opts)
   local worktree_root = git.repo.worktree_root
   assert(hunk.file, "hunk has no filepath")
 
-  local path = Path:new(hunk.file):make_relative(worktree_root)
-  local eol = eol_character(path)
+  local path = hunk.file
+  local eol = eol_character(Path:new(worktree_root, path):absolute())
 
   table.insert(diff_content, 1, string.format("+++ b/%s", path))
   table.insert(diff_content, 1, string.format("--- a/%s", path))
@@ -105,6 +105,53 @@ function M.apply(patch, opts)
   end
 
   return cmd.ignore_space_change.with_patch(patch).call { await = true }
+end
+
+---@param file string path relative to the repository root
+---@return boolean
+local function has_unstaged_changes(file)
+  return #git.cli.diff.name_only.files(file).call({ hidden = true }).stdout > 0
+end
+
+---Reverses a patch of staged changes in the index and the worktree. Unlike `apply --index`, this works when the
+---file also has unstaged changes, and keeps them.
+---@param patch string diff generated with M.generate_patch
+---@param file string path relative to the repository root
+function M.discard_staged_patch(patch, file)
+  if has_unstaged_changes(file) then
+    if M.apply(patch, { reverse = true, cached = true }):success() then
+      M.apply(patch, { reverse = true })
+    end
+  else
+    M.apply(patch, { reverse = true, index = true })
+  end
+end
+
+---Discards the staged changes of modified files, keeping any unstaged changes made on top of them.
+---@param items StatusItem[]
+function M.discard_staged(items)
+  local unchanged = {}
+  for _, item in ipairs(items) do
+    if has_unstaged_changes(item.name) then
+      -- Written by git to a file, so the patch keeps its exact bytes (e.g. CRLF line endings)
+      local patch = vim.fn.tempname()
+      git.cli.diff.no_ext_diff.no_textconv.cached.binary
+        .args("--output=" .. patch)
+        .files(item.name)
+        .call { hidden = true }
+      if git.cli.apply.reverse.cached.args("--whitespace=nowarn", patch).call({ await = true }):success() then
+        git.cli.apply.reverse.args("--whitespace=nowarn", patch).call { await = true }
+      end
+      vim.fn.delete(patch)
+    else
+      table.insert(unchanged, item.escaped_path)
+    end
+  end
+
+  if #unchanged > 0 then
+    M.reset(unchanged)
+    M.checkout(unchanged)
+  end
 end
 
 function M.add(files)
