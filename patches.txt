@@ -2,3 +2,4 @@ These patches have not made it upstream yet (or never will):
 * feature-fast-commit: https://github.com/NeogitOrg/neogit/pull/1857
 * diff-unmerged-commits 
 * track-subdir-of-monorepo
+* fix/stage-lines-from-subdirectory
